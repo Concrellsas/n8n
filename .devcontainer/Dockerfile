@@ -1,7 +1,20 @@
-FROM n8nio/base:20
+FROM n8nio/n8n:latest
 
-RUN apk add --no-cache --update openssh sudo shadow bash
-RUN echo node ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/node && chmod 0440 /etc/sudoers.d/node
-RUN mkdir /workspaces && chown node:node /workspaces
+USER root
+
+# Instalar Cloudflare Tunnel (cloudflared)
+RUN wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb && \
+    dpkg -i cloudflared-linux-amd64.deb && \
+    rm cloudflared-linux-amd64.deb
+
+# Directorio para credenciales de Cloudflare
+RUN mkdir -p /home/node/.cloudflared && \
+    chown -R node:node /home/node/.cloudflared
+
 USER node
-RUN mkdir -p ~/.pnpm-store && pnpm config set store-dir ~/.pnpm-store --global
+
+# Comando para iniciar Cloudflare Tunnel y luego n8n
+CMD echo '${CLOUDFLARE_CREDENTIALS_JSON}' > /home/node/.cloudflared/<tu-tunnel-id>.json && \
+    cloudflared tunnel run <nombre-del-tunel> & \
+    n8n
+
