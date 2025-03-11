@@ -1,19 +1,25 @@
-FROM n8nio/n8n:latest
+# Imagen base oficial de Node
+FROM node:18-alpine
 
-USER root
+# Instalar n8n de manera global
+RUN npm install -g n8n
 
-# Instalar Cloudflare Tunnel (cloudflared)
-RUN wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb && \
-    dpkg -i cloudflared-linux-amd64.deb && \
-    rm cloudflared-linux-amd64.deb
+# Instalar herramientas necesarias
+RUN apk add --no-cache unzip curl
 
-# Directorio para credenciales de Cloudflare
-RUN mkdir -p /home/node/.cloudflared && \
-    chown -R node:node /home/node/.cloudflared
+# Instalar Ngrok
+RUN curl -s https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip -o ngrok.zip \
+    && unzip ngrok.zip \
+    && mv ngrok /usr/local/bin \
+    && rm ngrok.zip
 
-USER node
+# Variables de entorno por defecto
+ENV N8N_HOST=localhost
+ENV N8N_PROTOCOL=http
+ENV WEBHOOK_TUNNEL_URL=http://localhost:5678
 
-# Comando para iniciar Cloudflare Tunnel y luego n8n
-CMD echo '${CLOUDFLARE_CREDENTIALS_JSON}' > /home/node/.cloudflared/<tu-tunnel-id>.json && \
-    cloudflared tunnel run <nombre-del-tunel> & \
-    n8n
+# Exponer el puerto de n8n
+EXPOSE 5678
+
+# Comando de arranque: inicia Ngrok en segundo plano y luego n8n
+CMD ngrok http 5678 --log=stdout & n8n start
